@@ -1,0 +1,56 @@
+---
+title: "Rueda de prensa de presentación de Pellegrini"
+output: html_document
+---
+
+Cargamos las librerías necesarias.
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(youtubecaption)
+library(tm)
+library(ggwordcloud)
+
+windowsFonts("Bahnschrift" = windowsFont("Bahnschrift"))
+```
+
+Descargamos los subtítulos del vídeo de Youtube de presentación de Pellegrini como entrenador del Betis.
+
+```{r message=FALSE, warning=FALSE}
+raw_data <- get_caption("https://www.youtube.com/watch?v=tB18pA4n7xo", language = "es")
+```
+
+Filtramos la intervención del presidente del Betis.
+
+```{r message=FALSE, warning=FALSE}
+clean_data <- raw_data %>% 
+                filter(segment_id %in% (24:127)) %>% 
+                select(text) %>% 
+                separate(text, c("pal_1", "pal_2","pal_3", "pal_4", "pal_5", "pal_6", "pal_7", "pal_8", "pal_9"), sep = " ") %>% 
+                pivot_longer(1:9, names_to = "palabra") %>% 
+                select(-palabra) %>% 
+                filter(!is.na(value)) %>% 
+                rename(palabra = 1)
+
+summarised_data <- clean_data %>% 
+                    group_by(palabra) %>% 
+                    summarise(count = n()) %>% 
+                    arrange(desc(count)) %>% 
+                    filter(str_length(palabra) > 3) %>% 
+                    slice(-c(1, 2, 4, 9, 10, 11, 22))
+```
+
+Visualizamos la nube de palabras.
+
+```{r fig.width=8, message=FALSE, warning=FALSE}
+summarised_data %>% 
+  filter(count >= 3) %>% 
+  ggplot(aes(label = palabra, size = count)) +
+  scale_size_area(max_size = 20) +
+  geom_text_wordcloud_area(family = "Bahnschrift", eccentricity = 0.5) +
+  labs(title = "Nube de palabras del discurso del presidente del Betis en la presentación de Pellegrini", subtitle = "", caption = "@jantleon") +
+  theme_minimal(base_family = "Bahnschrift", base_size = 12) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
